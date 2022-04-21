@@ -1,0 +1,16 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  api:
+    image: metrobus-api
+    container_name: metrobus-api
+    environment:
+      - FLASK_ENV=production
+
+  ngnix:
+    image: nginx
+    container_name: metrobus-gateway
+    expose:
+      - 80
+
+volumes:
+  logvolume01: {}
