@@ -1,3 +1,6 @@
+import os
+
+basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 def get_coord(points: str) -> tuple:
@@ -13,3 +16,8 @@ def group_by(iterat, func, k_attr):
         else:
             lines[attr_val] += [func(it)]
     return lines
+
+
+class Configuration(object):
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite://")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False

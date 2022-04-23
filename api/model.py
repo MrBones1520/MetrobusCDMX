@@ -43,7 +43,6 @@ class LineaMetro:
             "operating": self.operating,
             "sideService": self.side,
             "operativeDays": self.operative_days,
-            "point": self.point,
         }
 
 
@@ -110,7 +109,7 @@ class CDMX:
         self._metro = [LineaMetro(row) for _, row in self._df_metro.iterrows()]
         self._alcaldias = [Alcaldia(row, self._metro) for _, row in self._df_alcaldias.iterrows()]
 
-    def get_alcaldias_info(self, args):
+    def get_alcaldias_info(self, args: MultiDict):
         arg0 = args.get('group-by')
         if arg0:
             value = group_by(
@@ -119,7 +118,7 @@ class CDMX:
                 Alcaldia.get_alter_name_attr(arg0)
             )
         else:
-            value = list(map(lambda it: {it.name: it.get_response(args)}, self._alcaldias))
+            value = list(map(lambda it: it.get_response(args), self._alcaldias))
 
         return {'alcaldias': value}
 

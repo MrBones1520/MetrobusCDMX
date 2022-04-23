@@ -1,16 +1,29 @@
 version: "3.9"  # optional since v1.27.0
 services:
   api:
-    image: metrobus-api
     container_name: metrobus-api
-    environment:
-      - FLASK_ENV=production
+    build: ./api
+    command: python manager.py run -h 0.0.0.0
+    volumes:
+      - ./api/:/app/
+    ports:
+      - 5000:5000
+    env_file:
+      - ./api/.env.dev
+    depends_on:
+      - db
 
-  ngnix:
-    image: nginx
-    container_name: metrobus-gateway
-    expose:
-      - 80
+  db:
+    container_name: metrobus_data
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - 5423:5432
+    environment:
+      - POSTGRES_USER=hello_flask
+      - POSTGRES_PASSWORD=hello_flask
+      - POSTGRES_DB=hello_flask_dev
 
 volumes:
-  logvolume01: {}
+  postgres_data:
