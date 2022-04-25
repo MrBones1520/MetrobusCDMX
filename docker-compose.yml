@@ -3,11 +3,11 @@ services:
   api:
     container_name: metrobus-api
     build: ./api
-    command: python manager.py run -h 0.0.0.0
+    command: python manage.py run -h 0.0.0.0
     volumes:
       - ./api/:/app/
     ports:
-      - 5000:5000
+      - "5000:5000"
     env_file:
       - ./api/.env.dev
     depends_on:
@@ -19,7 +19,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     ports:
-      - 5423:5432
+      - "5423:5432"
     environment:
       - POSTGRES_USER=hello_flask
       - POSTGRES_PASSWORD=hello_flask

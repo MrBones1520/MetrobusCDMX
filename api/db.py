@@ -1,5 +1,10 @@
-from app import db
-import model
+import os
+
+from app import app
+from flask_sqlalchemy import SQLAlchemy
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite://")
+db = SQLAlchemy(app)
 
 
 class AlcaldiaModel(db.Model):
@@ -9,10 +14,6 @@ class AlcaldiaModel(db.Model):
     name = db.Column(db.String(80), unique=True, nullable=False)
     id_town = db.Column(db.Integer, unique=True, nullable=False)
 
-    def __init__(self, alcaldia: model.Alcaldia):
-        self.name = alcaldia.name
-        self.id_town = alcaldia.id_town
-
 
 class LineaMetroModel(db.Model):
     __tablename__ = "metrobus_lineas"
@@ -21,6 +22,9 @@ class LineaMetroModel(db.Model):
     full_name = db.Column(db.String(80), unique=True, nullable=False)
     simple_name = db.Column(db.String(80), unique=True, nullable=False)
 
-    def __init__(self, linea_metro: model.LineaMetro):
-        self.full_name = linea_metro.full_name
-        self.simple_name = linea_metro.simple_name
+
+def create_db():
+    db.drop_all()
+    db.create_all()
+    db.session.commit()
+    print('created Tables')

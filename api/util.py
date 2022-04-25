@@ -1,7 +1,5 @@
 import os
 
-basedir = os.path.abspath(os.path.dirname(__file__))
-
 
 def get_coord(points: str) -> tuple:
     return tuple(map(float, points.split(',')))
@@ -16,6 +14,9 @@ def group_by(iterat, func, k_attr):
         else:
             lines[attr_val] += [func(it)]
     return lines
+
+
+basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Configuration(object):
