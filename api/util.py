@@ -6,7 +6,7 @@ def get_coord(points: str) -> tuple:
 def group_by(iterat, func, k_attr):
     lines = {}
     for it in iterat:
-        attr_val = getattr(it, k_attr)
+        attr_val = getattr(it, k_attr) if not isinstance(it, dict) else it[k_attr]
         if attr_val not in lines:
             lines[attr_val] = [func(it)]
         else:

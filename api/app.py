@@ -13,9 +13,8 @@ cli = FlaskGroup(app)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite://")
-db = SQLAlchemy(app)
 
-cdmx = CDMX()
+db = SQLAlchemy(app)
 
 
 class AlcaldiaModel(db.Model):
@@ -32,6 +31,17 @@ class LineaMetroModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(80), unique=True, nullable=False)
     simple_name = db.Column(db.String(80), unique=True, nullable=False)
+
+
+class UnidadModel(db.Model):
+    __tablename__ = "unidad"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(80), unique=True, nullable=False)
+    simple_name = db.Column(db.String(80), unique=True, nullable=False)
+
+
+cdmx = CDMX(db)
 
 
 def create_db():
@@ -59,7 +69,12 @@ def metrobus_info():
 
 @app.route('/unidades', methods=['GET'])
 def unidades_info():
-    return cdmx.get_unidaes_info()
+    return cdmx.get_unidades_info(request.args)
+
+
+@app.route('/unidades/<ide>', methods=['GET'])
+def unidad(ide: int):
+    return cdmx.get_unidad(ide)
 
 
 @cli.command("create_db")

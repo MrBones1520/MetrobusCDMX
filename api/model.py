@@ -6,6 +6,7 @@ from util import group_by, get_coord
 from typing import List, Optional
 from shapely.geometry import Polygon, Point, LineString
 from werkzeug.datastructures import MultiDict
+from flask_sqlalchemy import SQLAlchemy
 
 
 class LineaMetro:
@@ -99,8 +100,7 @@ class CDMX:
 
     _INSTANCE = None
 
-    def __init__(self):
-
+    def __init__(self, db: Optional[SQLAlchemy] = None):
         _ml = requests.get(
             'https://datos.cdmx.gob.mx/api/3/action/datastore_search?resource_id=61fd8d85-9598-4dfe-890b-2780ed26efc8'
         )
@@ -113,22 +113,26 @@ class CDMX:
             self._df_metro: pd.DataFrame = pd.DataFrame(_ml.json()['result']['records'])
         self._metrobus = [LineaMetro(row) for _, row in self._df_metro.iterrows()]
         self._alcaldias = [Alcaldia(row, self._metrobus) for _, row in self._df_alcaldias.iterrows()]
+        self.db = db
+        if self.db:
+            for mt in self._metrobus:
+                self.db.session.add(mt)
+            self.db.session.commit()
 
-    def call(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         if not self._INSTANCE:
             self._INSTANCE = super().__call__(*args, **kwargs)
         return self._INSTANCE
 
-    def get_unidaes_info(self):
+    def get_unidades_info(self, args: MultiDict):
         _df_unidades = pd.read_csv('api/prueba_fetchdata_metrobus.csv')
         _unidades = [Unidad(row) for _, row in _df_unidades.iterrows()]
 
-        return {
-            "unidades": sorted(
-                list(map(lambda it: it.get_response(), _unidades)),
-                key=lambda it: it['id']
-            )
-        }
+        value = sorted(
+            list(map(lambda it: it.get_response(), _unidades)),
+            key=lambda it: it['id']
+        )
+        return {"unidades": value}
 
     def get_alcaldias_info(self, args: MultiDict):
         arg0 = args.get('group-by')
@@ -156,6 +160,9 @@ class CDMX:
 
         return {'lineas': value}
 
+    def get_unidad(self, id_: int):
+        return {'unidad': {}}
+
     @property
     def alcaldias(self):
         return self._alcaldias
@@ -166,6 +173,15 @@ class CDMX:
 
 
 class Unidad:
+
+    keys_alter = {
+        'alcaldia': 'alcaldia_name',
+        "status": 'operating'
+    }
+
+    @staticmethod
+    def get_alter_name_attr(key_attr) -> str:
+        return Unidad.keys_alter.get(key_attr)
 
     cdmx = CDMX()
 
@@ -186,20 +202,20 @@ class Unidad:
                 return alcaldia
         return None
 
-    def get_line(self) -> Optional[LineaMetro]:
+    def get_lm(self) -> Optional[LineaMetro]:
         for lm in self.cdmx.linea_metrobus:
-            if lm.line_string.within(self.point):
+            if lm.line_string.contains(self.point):
                 return lm
         return None
 
     def get_response(self):
         alcaldia = self.get_alcaldia()
-        linea = self.get_line()
+        linea = self.get_lm()
         return {
             'id': self.id,
             'status': self.status,
-            'alcaldia': alcaldia.get_response({}) if alcaldia else None,
+            'alcaldiaActual': alcaldia.get_response({})['name'] if alcaldia else None,
+            "lmActual": linea.get_response({}) if linea else None,
             'latitude': self.point.x,
             'longitude': self.point.y,
-            "lineaCurrent": linea.get_response({}) if linea else None
         }
