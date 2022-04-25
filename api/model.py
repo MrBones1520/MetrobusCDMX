@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 from util import group_by, get_coord
-from typing import List
+from typing import List, Optional
 from shapely.geometry import Polygon, Point, LineString
 from werkzeug.datastructures import MultiDict
 
@@ -100,6 +100,7 @@ class CDMX:
     _INSTANCE = None
 
     def __init__(self):
+
         _ml = requests.get(
             'https://datos.cdmx.gob.mx/api/3/action/datastore_search?resource_id=61fd8d85-9598-4dfe-890b-2780ed26efc8'
         )
@@ -117,6 +118,17 @@ class CDMX:
         if not self._INSTANCE:
             self._INSTANCE = super().__call__(*args, **kwargs)
         return self._INSTANCE
+
+    def get_unidaes_info(self):
+        _df_unidades = pd.read_csv('api/prueba_fetchdata_metrobus.csv')
+        _unidades = [Unidad(row) for _, row in _df_unidades.iterrows()]
+
+        return {
+            "unidades": sorted(
+                list(map(lambda it: it.get_response(), _unidades)),
+                key=lambda it: it['id']
+            )
+        }
 
     def get_alcaldias_info(self, args: MultiDict):
         arg0 = args.get('group-by')
@@ -143,3 +155,51 @@ class CDMX:
             value = list(map(lambda it: it.get_response(args), self._metrobus))
 
         return {'lineas': value}
+
+    @property
+    def alcaldias(self):
+        return self._alcaldias
+
+    @property
+    def linea_metrobus(self):
+        return self._metrobus
+
+
+class Unidad:
+
+    cdmx = CDMX()
+
+    def __init__(self, model):
+        self.id = model['vehicle_id']
+        self.status = model['vehicle_current_status']
+        self.point = Point(model['position_longitude'], model['position_latitude'])
+        self.speed = model['position_speed']
+        self.label = model['vehicle_label']
+        self.route = model['trip_route_id']
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def get_alcaldia(self) -> Optional[Alcaldia]:
+        for alcaldia in self.cdmx.alcaldias:
+            if alcaldia.polygon.contains(self.point):
+                return alcaldia
+        return None
+
+    def get_line(self) -> Optional[LineaMetro]:
+        for lm in self.cdmx.linea_metrobus:
+            if lm.line_string.within(self.point):
+                return lm
+        return None
+
+    def get_response(self):
+        alcaldia = self.get_alcaldia()
+        linea = self.get_line()
+        return {
+            'id': self.id,
+            'status': self.status,
+            'alcaldia': alcaldia.get_response({}) if alcaldia else None,
+            'latitude': self.point.x,
+            'longitude': self.point.y,
+            "lineaCurrent": linea.get_response({}) if linea else None
+        }

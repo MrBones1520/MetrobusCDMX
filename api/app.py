@@ -57,6 +57,11 @@ def metrobus_info():
     return cdmx.get_lineas_info(request.args)
 
 
+@app.route('/unidades', methods=['GET'])
+def unidades_info():
+    return cdmx.get_unidaes_info()
+
+
 @cli.command("create_db")
 def create_db():
     db.create_db()
