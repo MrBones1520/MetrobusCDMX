@@ -1,5 +1,3 @@
-import os
-
 
 def get_coord(points: str) -> tuple:
     return tuple(map(float, points.split(',')))
@@ -15,10 +13,3 @@ def group_by(iterat, func, k_attr):
             lines[attr_val] += [func(it)]
     return lines
 
-
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-
-class Configuration(object):
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite://")
-    SQLALCHEMY_TRACK_MODIFICATIONS = False

@@ -1,6 +1,7 @@
 import json
 import requests
 import pandas as pd
+
 from util import group_by, get_coord
 from typing import List
 from shapely.geometry import Polygon, Point, LineString
@@ -93,7 +94,10 @@ class Alcaldia:
         return base
 
 
+# Clase CDMX Singleton
 class CDMX:
+
+    _INSTANCE = None
 
     def __init__(self):
         _ml = requests.get(
@@ -106,8 +110,13 @@ class CDMX:
             self._df_alcaldias: pd.DataFrame = pd.DataFrame(_alc.json()['result']['records'])
         if _ml.status_code == 200:
             self._df_metro: pd.DataFrame = pd.DataFrame(_ml.json()['result']['records'])
-        self._metro = [LineaMetro(row) for _, row in self._df_metro.iterrows()]
-        self._alcaldias = [Alcaldia(row, self._metro) for _, row in self._df_alcaldias.iterrows()]
+        self._metrobus = [LineaMetro(row) for _, row in self._df_metro.iterrows()]
+        self._alcaldias = [Alcaldia(row, self._metrobus) for _, row in self._df_alcaldias.iterrows()]
+
+    def call(self, *args, **kwargs):
+        if not self._INSTANCE:
+            self._INSTANCE = super().__call__(*args, **kwargs)
+        return self._INSTANCE
 
     def get_alcaldias_info(self, args: MultiDict):
         arg0 = args.get('group-by')
@@ -126,11 +135,11 @@ class CDMX:
         arg0 = args.get('group-by')
         if arg0:
             value = group_by(
-                self._metro,
+                self._metrobus,
                 lambda it: it.get_response(args),
                 LineaMetro.get_alter_name_attr(arg0)
             )
         else:
-            value = list(map(lambda it: it.get_response(args), self._metro))
+            value = list(map(lambda it: it.get_response(args), self._metrobus))
 
         return {'lineas': value}
