@@ -1,3 +1,7 @@
+from flask_sqlalchemy import SQLAlchemy
+from app import app
+
+db = SQLAlchemy(app)
 
 
 class AlcaldiaModel(db.Model):
@@ -22,3 +26,5 @@ class UnidadModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(80), unique=True, nullable=False)
     simple_name = db.Column(db.String(80), unique=True, nullable=False)
+
+

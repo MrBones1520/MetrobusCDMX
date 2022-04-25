@@ -6,7 +6,6 @@ from util import group_by, get_coord
 from typing import List, Optional
 from shapely.geometry import Polygon, Point, LineString
 from werkzeug.datastructures import MultiDict
-from flask_sqlalchemy import SQLAlchemy
 
 
 class LineaMetro:
@@ -100,7 +99,7 @@ class CDMX:
 
     _INSTANCE = None
 
-    def __init__(self, db: Optional[SQLAlchemy] = None):
+    def __init__(self):
         _ml = requests.get(
             'https://datos.cdmx.gob.mx/api/3/action/datastore_search?resource_id=61fd8d85-9598-4dfe-890b-2780ed26efc8'
         )
@@ -113,11 +112,6 @@ class CDMX:
             self._df_metro: pd.DataFrame = pd.DataFrame(_ml.json()['result']['records'])
         self._metrobus = [LineaMetro(row) for _, row in self._df_metro.iterrows()]
         self._alcaldias = [Alcaldia(row, self._metrobus) for _, row in self._df_alcaldias.iterrows()]
-        self.db = db
-        if self.db:
-            for mt in self._metrobus:
-                self.db.session.add(mt)
-            self.db.session.commit()
 
     def __call__(self, *args, **kwargs):
         if not self._INSTANCE:
@@ -125,7 +119,7 @@ class CDMX:
         return self._INSTANCE
 
     def get_unidades_info(self, args: MultiDict):
-        _df_unidades = pd.read_csv('api/prueba_fetchdata_metrobus.csv')
+        _df_unidades = pd.read_csv('prueba_fetchdata_metrobus.csv')
         _unidades = [Unidad(row) for _, row in _df_unidades.iterrows()]
 
         value = sorted(
