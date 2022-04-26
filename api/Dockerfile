@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED 1
 
 RUN pip install --upgrade pip
 
-COPY ./requirements_dev.txt /app
+COPY requirements_dev.txt /app
 
 RUN pip install -r requirements_dev.txt
 
