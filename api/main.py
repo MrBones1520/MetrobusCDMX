@@ -1,18 +1,14 @@
-import os
 from flask import Flask, request
-from model import CDMX
 from flask.cli import FlaskGroup
+import command
+import model
 
 app = Flask(__name__)
 
+cdmx = model.CDMX()
+
 # Agregar grupo de comandos
 cli = FlaskGroup(app)
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite://")
-
-cdmx = CDMX()
 
 
 @app.route('/alcaldias', methods=['GET'])
@@ -33,6 +29,16 @@ def unidades_info():
 @app.route('/unidades/<ide>', methods=['GET'])
 def unidad(ide: int):
     return cdmx.get_unidad(ide)
+
+
+@cli.command("create_db")
+def comm1():
+    command.create_db()
+
+
+@cli.command("create_data")
+def comm2():
+    command.create_data(cdmx)
 
 
 if __name__ == '__main__':

@@ -95,6 +95,9 @@ class Alcaldia:
 
 
 # Clase CDMX Singleton
+import db
+
+
 class CDMX:
 
     _INSTANCE = None
@@ -158,12 +161,12 @@ class CDMX:
         return {'unidad': {}}
 
     @property
-    def alcaldias(self):
-        return self._alcaldias
+    def alcaldias_model(self):
+        return [db.AlcaldiaModel.of(it) for it in self._alcaldias]
 
     @property
-    def linea_metrobus(self):
-        return self._metrobus
+    def linea_metrobus_model(self):
+        return [db.LineaMetroModel.of(it) for it in self._metrobus]
 
 
 class Unidad:

@@ -3,7 +3,7 @@ services:
   api:
     container_name: metrobus_api
     build: ./api
-    command: python app.py run -h 0.0.0.0
+    command: python main.py run -h 0.0.0.0
     volumes:
       - ./api/:/app/
     ports:
