@@ -1,41 +1,41 @@
 import json
-import main
+import util
 import os
 
-from util import get_coord
-from shapely.geometry import Polygon, Point, LineString
+from main import app
+from typing import List
 from flask_sqlalchemy import SQLAlchemy
+from shapely.geometry import Polygon, Point, LineString
 
-main.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-main.app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite://")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite://")
 
-db = SQLAlchemy(main.app)
+db = SQLAlchemy(app)
 
 
 """ Class Checker """
 
 
-class LineaMetro:
+class MetroBus:
 
-    keys_alter = {
-        'lineas': 'simple_name',
-        "operativo": 'operating'
-    }
+    @property
+    def entity(self):
+        return MetroBusModel.of(self)
 
     def __init__(self, data):
         self.id = data['id']
         self.id_line = data['line']
         self.full_name = data['name']
         self.simple_name = data['nombre']
+        self.geometry = json.dumps(data['geometry'])
         self.coordinates = json.loads(data['geometry'])['coordinates']
         self.line_string = LineString(self.coordinates)
         self.operating = data['operating'] == 'yes'
         self.side = data['serv_side']
-        self.point = Point(get_coord(data['geo_point_2d']))
+        self.point = Point(util.get_coord(data['geo_point_2d']))
         self.operative_days = data['oper_days']
-        self.entity = MetroBusModel.of(self)
 
-    def get_response(self, args=None) -> dict:
+    def get_response(self) -> dict:
         return {
             "id": self.id,
             "idLine": self.id_line,
@@ -49,46 +49,42 @@ class LineaMetro:
 
 class Alcaldia:
 
-    keys_alter = {
-        'lineas': 'simple_name',
-        "operativo": 'operating'
-    }
+    @property
+    def entity(self):
+        return AlcaldiaModel.of(self)
 
     def __init__(self, data):
         self.id = data['id']
         self.name = data['nomgeo']
-        self.point = Point(get_coord(data['geo_point_2d']))
+        self.point = Point(util.get_coord(data['geo_point_2d']))
         self.id_town = data['municipio']
+        self.shape = json.dumps(data['geo_shape'])
         self.coordinates = json.loads(data['geo_shape'])['coordinates'][0]
         self.polygon = Polygon(self.coordinates)
-        import manage
-        self.lineas_metro = list(
-            filter(
-                lambda lm: lm.line_string.intersects(self.polygon),
-                manage.transform_metrobuses()
-            )
-        )
-        self.entity = AlcaldiaModel.of(self)
 
-    def get_response(self, args):
-        form = args.get('form')
-        base = {
-            "id": self.id,
-            "name": self.name,
-            "idTown": self.id_town,
+    def get_response(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            "latitud": self.point.x,
+            "longitud": self.point.y
         }
-        if form == 'routes':
-            lmb = list(map(LineaMetro.get_response, self.lineas_metro))
-            return {
-                **base,
-                "lines": lmb,
-                "linesCount": len(lmb),
-            }
 
-        return base
+    def get_response_info(self, lines: List[MetroBus]):
+        lines = list(filter(
+            lambda lm: lm.line_string.intersects(self.polygon), lines
+        ))
+        return {
+            **self.get_response(),
+            "lines": list(map(MetroBus.get_response, lines))
+        }
 
 
 class Unidad:
+
+    @property
+    def entity(self):
+        return UnidadModel.of(self)
 
     def __init__(self, model):
         self.vehicle_id = model['vehicle_id']
@@ -97,7 +93,6 @@ class Unidad:
         self.speed = model['position_speed']
         self.label = model['vehicle_label']
         self.route = model['trip_route_id']
-        self.entity = UnidadModel.of(self)
 
     def get_response(self):
         return {
@@ -114,13 +109,6 @@ class Unidad:
 class AlcaldiaModel(db.Model):
     __tablename__ = "alcaldia"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    id_town = db.Column(db.Integer, unique=True, nullable=False)
-    coord_x = db.Column(db.Float, nullable=False)
-    coord_y = db.Column(db.Float, nullable=False)
-    polygon = db.Column(db.String, nullable=False)
-
     @classmethod
     def of(cls, it: Alcaldia):
         return cls(
@@ -129,12 +117,44 @@ class AlcaldiaModel(db.Model):
             id_town=it.id_town,
             polygon=str(it.polygon),
             coord_x=it.point.x,
-            coord_y=it.point.y
+            coord_y=it.point.y,
+            shape=it.shape,
         )
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    id_town = db.Column(db.Integer, unique=True, nullable=False)
+    coord_x = db.Column(db.Float, nullable=False)
+    coord_y = db.Column(db.Float, nullable=False)
+    polygon = db.Column(db.String, nullable=False)
+    shape = db.Column(db.String, nullable=False)
+
+    def to(self) -> Alcaldia:
+        return Alcaldia({
+            'id': self.id,
+            'nomgeo': self.name,
+            'geo_point_2d': f"{self.coord_x}, {self.coord_y}",
+            'municipio': self.id_town,
+            'geo_shape': json.loads(self.shape),
+        })
 
 
 class MetroBusModel(db.Model):
     __tablename__ = "metrobus"
+
+    @classmethod
+    def of(cls, it: MetroBus):
+        return cls(
+            full_name=it.full_name,
+            simple_name=it.simple_name,
+            coord_x=it.point.x,
+            coord_y=it.point.y,
+            operative=it.operating,
+            service_side=it.side,
+            service_days=it.operative_days,
+            id_line=it.id_line,
+            geometry=it.geometry
+        )
 
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(80), unique=True, nullable=False)
@@ -144,18 +164,21 @@ class MetroBusModel(db.Model):
     operative = db.Column(db.Boolean, nullable=False)
     service_side = db.Column(db.String, nullable=False)
     service_days = db.Column(db.String, nullable=False)
+    id_line = db.Column(db.Integer, nullable=True)
+    geometry = db.Column(db.String, nullable=False)
 
-    @classmethod
-    def of(cls, it: LineaMetro):
-        return cls(
-            full_name=it.full_name,
-            simple_name=it.simple_name,
-            coord_x=it.point.x,
-            coord_y=it.point.y,
-            operative=it.operating,
-            service_side=it.side,
-            service_days=it.operative_days
-        )
+    def to(self) -> MetroBus:
+        return MetroBus({
+            'id': self.id,
+            'line': self.id_line,
+            'name': self.full_name,
+            'nombre': self.simple_name,
+            'geometry': json.loads(self.geometry),
+            'serv_side': self.service_side,
+            'oper_days': self.service_days,
+            'operating': self.operative,
+            'geo_point_2d': f"{self.coord_x}, {self.coord_y}"
+        })
 
 
 class AlcaldiaMetrobus(db.Model):
@@ -174,12 +197,30 @@ class UnidadModel(db.Model):
     label = db.Column(db.String, nullable=True)
     point_x = db.Column(db.Float)
     point_y = db.Column(db.Float)
+    speed = db.Column(db.Integer)
+    trip_id = db.Column(db.Float)
 
     @classmethod
     def of(cls, it: Unidad):
         return cls(
-            status=bool(it.status), label=it.label, point_x=it.point.x, point_y=it.point.y
+            status=bool(it.status),
+            label=it.label,
+            point_x=it.point.x,
+            point_y=it.point.y,
+            speed=it.speed,
+            trip_id=it.route
         )
+
+    def to(self) -> Unidad:
+        return Unidad({
+            'vehicle_id': self.id,
+            'vehicle_current_status': self.status,
+            'position_longitude': self.point_x,
+            'position_latitude': self.point_y,
+            'position_speed': self.speed,
+            "vehicle_label": self.label,
+            'trip_route_id': self.trip_id
+        })
 
 
 """ Commands """
@@ -202,19 +243,3 @@ def create_data(manage):
     print("Created Unidades")
     db.session.commit()
 
-
-""" Helpers """
-
-
-def is_key_comp(id_class, key) -> bool:
-    if id_class == 'lm':
-        return key in LineaMetro.keys_alter
-    return False
-
-
-def get_alter_name_attr(id_class, key_attr) -> str:
-    if id_class == 'lm':
-        return LineaMetro.keys_alter.get(key_attr)
-    if id_class == 'alc':
-        return Alcaldia.keys_alter.get(key_attr)
-    return ''

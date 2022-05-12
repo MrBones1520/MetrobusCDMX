@@ -1,7 +1,8 @@
-from flask import Flask, request
-from flask.cli import FlaskGroup
-
 import manage
+
+from flask import Flask
+from flask.cli import FlaskGroup
+from flask import request
 
 app = Flask(__name__)
 
@@ -10,23 +11,33 @@ cli = FlaskGroup(app)
 
 
 @app.route('/alcaldias', methods=['GET'])
-def alcaldias_info():
-    return manage.get_alcaldias_info(request.args)
+def alcaldias_list():
+    return manage.resource_all_alcaldias(request.args)
+
+
+@app.route('/alcaldias-metrobus', methods=['GET'])
+def alcaldia_compuest():
+    return manage.resource_alcaldias_metrobus()
 
 
 @app.route('/metrobus', methods=['GET'])
 def metrobus_info():
-    return manage.get_lineas_info(request.args)
+    return manage.resource_all_metrobus(request.args)
+
+
+@app.route('/metrobus-alcaldias', methods=['GET'])
+def metrobus_info():
+    return manage.resource_metrobus_alcaldias(request.args)
 
 
 @app.route('/unidades', methods=['GET'])
 def unidades_info():
-    return manage.get_unidades_info(request.args)
+    return manage.resource_all_unidades(request.args)
 
 
 @app.route('/unidades/<ide>', methods=['GET'])
 def unidad(ide: int):
-    return manage.get_unidad(ide)
+    return manage.resource_unidad(ide)
 
 
 @cli.command("create_db")

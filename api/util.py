@@ -1,3 +1,5 @@
+""" Util Methods """
+
 
 def get_coord(points: str) -> tuple:
     return tuple(map(float, points.split(',')))
@@ -12,4 +14,3 @@ def group_by(iterat, func, k_attr):
         else:
             lines[attr_val] += [func(it)]
     return lines
-

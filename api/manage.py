@@ -1,6 +1,7 @@
+import bdb
+
 import pandas as pd
 import typing as typ
-import util
 
 from model import *
 from requests import get
@@ -33,8 +34,8 @@ def transform_alcaldias() -> typ.List[Alcaldia]:
     return list(map(Alcaldia, get_df_alcaldias().to_dict('records')))
 
 
-def transform_metrobuses() -> typ.List[LineaMetro]:
-    return list(map(LineaMetro, get_df_metrobus().to_dict('records')))
+def transform_metrobuses() -> typ.List[MetroBus]:
+    return list(map(MetroBus, get_df_metrobus().to_dict('records')))
 
 
 def transform_unidades() -> typ.List[Unidad]:
@@ -44,50 +45,47 @@ def transform_unidades() -> typ.List[Unidad]:
 """ Responses """
 
 
-def get_unidades_info(args: MultiDict):
-    value = sorted(
-        list(map(lambda it: it.get_response(), transform_unidades())),
-        key=lambda it: it['vehicleId']
-    )
-    return {"unidades": value}
+def resource_all_unidades(args: MultiDict):
+    unidades = db.session.query(UnidadModel).all()
+    responses = list(map(
+        lambda it: UnidadModel.to(it).get_response(), unidades
+    ))
+    return {"unidades": responses}
 
 
-def get_alcaldias_info(args: MultiDict):
-    arg0 = args.get('group-by')
-    alcaldias = transform_alcaldias()
-    if arg0:
-        value = util.group_by(
-            alcaldias,
-            lambda it: it.get_response(args),
-            get_alter_name_attr('alc', arg0)
-        )
-    else:
-        value = list(map(lambda it: it.get_response(args), alcaldias))
-
-    return {'alcaldias': value}
+def resource_all_alcaldias(args: MultiDict):
+    alcaldias = db.session.query(AlcaldiaModel).all()
+    responses = list(map(
+        lambda it: AlcaldiaModel.to(it).get_response(), alcaldias
+    ))
+    return {'alcaldias': responses}
 
 
-def get_lineas_info(args: MultiDict):
-    arg0 = args.get('group-by')
-    metrobus = transform_metrobuses()
-    if arg0:
-        value = util.group_by(
-            metrobus,
-            lambda it: it.get_response(args),
-            get_alter_name_attr('lm', arg0)
-        )
-    else:
-        value = list(map(lambda it: it.get_response(args), metrobus))
-
-    return {'lineas': value}
+def resource_all_metrobus(args: MultiDict):
+    metrobus = db.session.query(MetroBusModel).all()
+    responses = list(map(
+        lambda it: MetroBusModel.to(it).get_response(), metrobus
+    ))
+    return {'MetrobusLineas': responses}
 
 
-def get_unidad(id_unit: int):
-    unidades = transform_unidades()
-    value = filter(lambda it: it.vehicle_id == id_unit, unidades)
-    if not value:
-        return {'status': False}
-    return {'unidad': value.get_response()}
+def resource_unidad(id_unit: int):
+    unidad = db.session.query(UnidadModel).get(id_unit)
+    return {'unidad': UnidadModel.to(unidad).get_response()}
+
+
+def resource_alcaldias_metrobus():
+    alcaldias = db.session.query(AlcaldiaModel).all()
+    metrobus = db.session.query(MetroBusModel).all()
+    lineas = list(map(MetroBusModel.to, metrobus))
+    responses = list(map(
+        lambda it: AlcaldiaModel.to(it).get_response_info(lineas), alcaldias
+    ))
+    return {'alcaldias': responses}
+
+
+def resource_metrobus_alcaldias(args):
+    return None
 
 
 """ Database Model Mapping"""
@@ -103,4 +101,3 @@ def models_unidades() -> typ.List[UnidadModel]:
 
 def models_metrobus() -> typ.List[MetroBusModel]:
     return list(map(lambda it: it.entity, transform_metrobuses()))
-
