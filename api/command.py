@@ -1,5 +1,5 @@
 from db import db
-import model
+from manage import CDMX
 
 
 def create_db():
@@ -9,11 +9,14 @@ def create_db():
     print('created Tables')
 
 
-def create_data(cdmx: model.CDMX):
+def create_data(cdmx: CDMX):
     create_db()
     db.session.add_all(cdmx.alcaldias_model)
     print("Created Alcaldias")
     db.session.add_all(cdmx.linea_metrobus_model)
     print("Created Lineas del metro")
+    db.session.add_all(cdmx.unidades_model)
+    print("Created Unidades")
     db.session.commit()
+
 

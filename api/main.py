@@ -1,11 +1,11 @@
 from flask import Flask, request
 from flask.cli import FlaskGroup
 import command
-import model
+import manage
 
 app = Flask(__name__)
 
-cdmx = model.CDMX()
+cdmx = manage.CDMX()
 
 # Agregar grupo de comandos
 cli = FlaskGroup(app)
