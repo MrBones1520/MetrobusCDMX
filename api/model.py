@@ -3,7 +3,7 @@ import util
 import os
 
 from main import app
-from typing import List
+from typing import List, Optional
 from flask_sqlalchemy import SQLAlchemy
 from shapely.geometry import Polygon, Point, LineString
 
@@ -46,6 +46,15 @@ class MetroBus:
             "operativeDays": self.operative_days,
         }
 
+    def get_response_info(self, alcaldias):
+        _alcaldias = list(filter(
+            lambda it: self.line_string.intersects(it.polygon), alcaldias
+        ))
+        return {
+            **self.get_response(),
+            'alcaldias': list(map(lambda it: {'id': it.id, 'name': it.name}, _alcaldias))
+        }
+
 
 class Alcaldia:
 
@@ -62,12 +71,24 @@ class Alcaldia:
         self.coordinates = json.loads(data['geo_shape'])['coordinates'][0]
         self.polygon = Polygon(self.coordinates)
 
-    def get_response(self):
-        return {
+    def get_response(self, resources: Optional[dict] = None):
+        body = {
             'id': self.id,
             'name': self.name,
             "latitud": self.point.x,
             "longitud": self.point.y
+        }
+        if not resources:
+            return body
+        unidades = list(filter(
+            lambda it: self.polygon.contains(it.point),
+            list(map(UnidadModel.to, resources['unidades']))
+        ))
+        if not unidades:
+            return body
+        return {
+            **body,
+            'unidades': list(map(Unidad.get_response, unidades))
         }
 
     def get_response_info(self, lines: List[MetroBus]):
@@ -87,6 +108,7 @@ class Unidad:
         return UnidadModel.of(self)
 
     def __init__(self, model):
+        self.id = model['id']
         self.vehicle_id = model['vehicle_id']
         self.status = model['vehicle_current_status']
         self.point = Point(model['position_longitude'], model['position_latitude'])
@@ -94,12 +116,26 @@ class Unidad:
         self.label = model['vehicle_label']
         self.route = model['trip_route_id']
 
-    def get_response(self):
-        return {
+    def get_response(self, resources_: Optional[dict] = None):
+        body = {
+            'id': self.id,
             'vehicleId': self.vehicle_id,
             'status': self.status,
             'latitude': self.point.x,
             'longitude': self.point.y,
+            'label': self.label,
+            'speed': self.speed
+        }
+        if not resources_:
+            return body
+        alcaldias = list(map(AlcaldiaModel.to, resources_['alcaldias']))
+        metrobus = list(map(MetroBusModel.to, resources_['metrobus']))
+        in_alc = list(filter(lambda it: it.polygon.contains(self.point), alcaldias))
+        in_met = list(filter(lambda it: it.line_string.contains(self.point), metrobus))
+        return {
+            **body,
+            'alcaldia': in_alc[0].name if in_alc else None,
+            'linea': in_met[0].name if in_met else None
         }
 
 
@@ -199,11 +235,14 @@ class UnidadModel(db.Model):
     point_y = db.Column(db.Float)
     speed = db.Column(db.Integer)
     trip_id = db.Column(db.Float)
+    vehicle_id = db.Column(db.Integer)
 
     @classmethod
     def of(cls, it: Unidad):
         return cls(
-            status=bool(it.status),
+            id=it.id,
+            vehicle_id=it.vehicle_id,
+            status=it.status == 1,
             label=it.label,
             point_x=it.point.x,
             point_y=it.point.y,
@@ -213,7 +252,8 @@ class UnidadModel(db.Model):
 
     def to(self) -> Unidad:
         return Unidad({
-            'vehicle_id': self.id,
+            'id': self.id,
+            'vehicle_id': self.vehicle_id,
             'vehicle_current_status': self.status,
             'position_longitude': self.point_x,
             'position_latitude': self.point_y,
