@@ -59,6 +59,11 @@ def comm2():
     manage.create_data(manage)
 
 
+@cli.command("update_data")
+def comm3():
+    manage.update_data(manage)
+
+
 if __name__ == '__main__':
     cli()
 

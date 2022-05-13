@@ -131,7 +131,7 @@ class Unidad:
         alcaldias = list(map(AlcaldiaModel.to, resources_['alcaldias']))
         metrobus = list(map(MetroBusModel.to, resources_['metrobus']))
         in_alc = list(filter(lambda it: it.polygon.contains(self.point), alcaldias))
-        in_met = list(filter(lambda it: it.line_string.contains(self.point), metrobus))
+        in_met = list(filter(lambda it: it.line_string.within(self.point), metrobus))
         return {
             **body,
             'alcaldia': in_alc[0].name if in_alc else None,
@@ -228,15 +228,6 @@ class AlcaldiaMetrobus(db.Model):
 class UnidadModel(db.Model):
     __tablename__ = "unidad"
 
-    id = db.Column(db.Integer, primary_key=True)
-    status = db.Column(db.Boolean)
-    label = db.Column(db.String, nullable=True)
-    point_x = db.Column(db.Float)
-    point_y = db.Column(db.Float)
-    speed = db.Column(db.Integer)
-    trip_id = db.Column(db.Float)
-    vehicle_id = db.Column(db.Integer)
-
     @classmethod
     def of(cls, it: Unidad):
         return cls(
@@ -249,6 +240,15 @@ class UnidadModel(db.Model):
             speed=it.speed,
             trip_id=it.route
         )
+
+    id = db.Column(db.Integer, primary_key=True)
+    status = db.Column(db.Boolean)
+    label = db.Column(db.String, nullable=True)
+    point_x = db.Column(db.Float)
+    point_y = db.Column(db.Float)
+    speed = db.Column(db.Integer)
+    trip_id = db.Column(db.Float)
+    vehicle_id = db.Column(db.Integer)
 
     def to(self) -> Unidad:
         return Unidad({
@@ -282,4 +282,8 @@ def create_data(manage):
     db.session.add_all(manage.models_unidades())
     print("Created Unidades")
     db.session.commit()
+
+
+def update_data(manage):
+    pass
 
